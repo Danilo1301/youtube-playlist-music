@@ -1,0 +1,5 @@
+data/
+node_modules/
+userData/
+log.txt
+package-lock.json
