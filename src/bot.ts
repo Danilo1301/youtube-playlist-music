@@ -19,6 +19,7 @@ function downloadImage(uri, filename, callback)
 
 interface IBotConfig {
     channelUrl: string
+    addNewVideos: boolean
 }
 
 interface ScrapVideo {
@@ -36,7 +37,8 @@ export default class Bot {
     public Videos: Map<string, Video> = new Map();
 
     public config: IBotConfig = {
-        channelUrl: ""
+        channelUrl: "",
+        addNewVideos: false
     }
 
     public static log(message: string)
@@ -75,6 +77,8 @@ export default class Bot {
 
         await Browser.initialize();
 
+        this.printUnwatchedVideos();
+        
         await this.findVideosInChannel();
 
         this.saveData();
@@ -138,6 +142,32 @@ export default class Bot {
         fs.writeFileSync(Bot.DATA_DIR + `/videos.json`, JSON.stringify(videos));
     }
 
+    private printUnwatchedVideos()
+    {
+        //print channels with unwatched videos
+        const channels: string[] = [];
+        const unwatchedVideos: Video[] = [];
+
+        for(const video of this.Videos.values())
+        {
+            if(video.watched) continue;
+
+            unwatchedVideos.push(video);
+
+            if(!channels.includes(video.channelId)) channels.push(video.channelId)
+        }   
+
+        for(const video of unwatchedVideos)
+        {
+            console.log(`Unwatched from ${video.channelId}: '${video.title}'`);
+        }
+
+        for(const channel of channels)
+        {
+            console.log(`There are videos unwatched from channel: ${channel}`);
+        }
+    }
+
     private async findVideosInChannel()
     {
         let url = this.config.channelUrl;
@@ -167,31 +197,37 @@ export default class Bot {
 
         for(const scrappedVideo of data)
         {
-            if(!this.Videos.has(scrappedVideo.id))
+            if(this.config.addNewVideos)
             {
-                const video: Video = {
-                    watched: scrappedVideo.watched,
-                    href: scrappedVideo.href,
-                    id: scrappedVideo.id,
-                    channelId: channelId,
-                    title: scrappedVideo.title
+                if(!this.Videos.has(scrappedVideo.id))
+                {
+                    const video: Video = {
+                        watched: scrappedVideo.watched,
+                        href: scrappedVideo.href,
+                        id: scrappedVideo.id,
+                        channelId: channelId,
+                        title: scrappedVideo.title
+                    }
+
+                    this.Videos.set(video.id, video);
+
+                    //console.log(`Found new video ${video.id} (${video.watched ? "Watched" : "Not watched"})`);
+
+                    Bot.log(`Found new video ${video.id} '${video.title}' (${video.watched ? "Watched" : "Not watched"})`);
                 }
-
-                this.Videos.set(video.id, video);
-
-                //console.log(`Found new video ${video.id} (${video.watched ? "Watched" : "Not watched"})`);
-
-                Bot.log(`Found new video ${video.id} '${video.title}' (${video.watched ? "Watched" : "Not watched"})`);
             }
 
-            const video = this.Videos.get(scrappedVideo.id);
-
-            if(video.watched != scrappedVideo.watched && scrappedVideo.watched)
+            if(this.Videos.has(scrappedVideo.id))
             {
-                video.watched = true;
-                //console.log(`Video was not watched, but now it is`);
+                const video = this.Videos.get(scrappedVideo.id);
 
-                Bot.log(`Video ${video.id} '${video.title}' is now set to watched`);
+                if(video.watched != scrappedVideo.watched && scrappedVideo.watched)
+                {
+                    video.watched = true;
+                    //console.log(`Video was not watched, but now it is`);
+
+                    Bot.log(`Video ${video.id} '${video.title}' is now set to watched`);
+                }
             }
         }
     }
