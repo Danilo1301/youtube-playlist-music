@@ -55,7 +55,19 @@ export default class Browser {
 
     public static async injectJQuery(page: any)
     {
-        this.injectScript(page, "https://code.jquery.com/jquery-3.2.1.min.js");
+        console.log(`Injecting jquery...`);
+
+        const data: any =  await page.evaluate(() => {
+            var el = document.createElement("script");
+            el.src = 'http://localhost:3000/inject-jquery.js';
+            document.body.append(el);
+
+            return new Promise<any>((resolve) => {
+                window["resolveExternalScript"] = (d) => resolve(d);
+            })
+        });
+
+        console.log(`Injected jquery`, data);
     }
 
     public static async injectScript(page: any, url: string)

@@ -1,4 +1,5 @@
 {
-    "channelUrl": "https://www.youtube.com/@DubstepGutter",
-    "addNewVideos": true
+    "channelId": "@Cherriexin",
+    "addNewVideos": true,
+    "needToMakeLogin": false
 }

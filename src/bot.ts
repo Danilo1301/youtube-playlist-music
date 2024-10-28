@@ -18,8 +18,9 @@ function downloadImage(uri, filename, callback)
 };
 
 interface IBotConfig {
-    channelUrl: string
+    channelId: string
     addNewVideos: boolean
+    needToMakeLogin: boolean
 }
 
 interface ScrapVideo {
@@ -37,8 +38,9 @@ export default class Bot {
     public Videos: Map<string, Video> = new Map();
 
     public config: IBotConfig = {
-        channelUrl: "",
-        addNewVideos: false
+        channelId: "",
+        addNewVideos: false,
+        needToMakeLogin: false
     }
 
     public static log(message: string)
@@ -79,6 +81,17 @@ export default class Bot {
 
         this.printUnwatchedVideos();
         
+        if(this.config.needToMakeLogin)
+        {
+            console.log(`Need to make login!`);
+
+            const browser = Browser.browser;
+            const page = (await browser.pages())[0];
+
+            await page.goto(`https://www.youtube.com`);
+            return;
+        }
+
         await this.findVideosInChannel();
 
         this.saveData();
@@ -114,6 +127,8 @@ export default class Bot {
             console.log('addedToPlaylist', addedToPlaylist);
         }
 
+        await Browser.browser.close();
+        
         Bot.log("Bot stopped!");
     }
 
@@ -170,9 +185,11 @@ export default class Bot {
 
     private async findVideosInChannel()
     {
-        let url = this.config.channelUrl;
+        let channelId = this.config.channelId;
+        if(!channelId.includes("@")) channelId = "@" + channelId;
+        
+        let url = "https://www.youtube.com/" + this.config.channelId;
         if(!url.includes("/videos")) url += "/videos";
-        let channelId = url.split("youtube.com/")[1].replace("/videos", "");
 
         console.log(`Going to channel ${url} (ID: ${channelId})`);
         Bot.log(`Going to channel: ${channelId}`);
@@ -180,7 +197,9 @@ export default class Bot {
         const browser = Browser.browser;
         const page = (await browser.pages())[0];
 
-        await page.goto(url);
+        await page.goto(url, {waitUntil: 'networkidle2'});
+        await page.setBypassCSP(true);
+
         await Browser.injectJQuery(page);
 
         const data: ScrapVideo[] = await page.evaluate(() => {
